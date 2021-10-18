@@ -11,6 +11,9 @@ import (
 )
 
 var bot, e = tgbot.NewBotAPI(getAPI())
+var quests = createQuest()
+var isGame = false
+var questObject questions
 
 type questions struct {
 	quest   string
@@ -27,10 +30,6 @@ func createQuest() []questions {
 		{quest: "Откуда пошло выражение «деньги не пахнут?", answer1: "От подателей за провоз парфюмерии", answer2: "От сборов за нестиранные носки", answer3: "От налога на туалеты", want: "От налога на туалеты"},
 		{quest: "Туристы, приезжающие на Майорку, обязаны заплатить налог…", answer1: "На плавки", answer2: "На пальмы", answer3: "На солнце", want: "На солнце"},
 		{quest: "Один известный писатель рассказывал, что списал образ старушки-вредины со своей бывшей жены. При этом бабулька оказалась удивительно похожей на Коко Шанель. На голове у нее всегда была шляпка со складной тульей, благодаря которой она и получила прозвище", answer1: "Шапокляк", answer2: "Красная Шапочка", answer3: "Мадам Баттерфляй", want: "Шапокляк"},
-	}
-	for i := range slice {
-		j := rand.Intn(i + 1)
-		slice[i], slice[j] = slice[j], slice[i]
 	}
 	return slice
 }
@@ -54,10 +53,34 @@ func checkErr(err error) {
 	}
 }
 
+func sendMess(msg tgbot.MessageConfig, text string) {
+	msg.Text = text
+	_, err := bot.Send(msg)
+	checkErr(err)
+}
+
+func randQuest(msg tgbot.MessageConfig) {
+	questObject = quests[rand.Intn(len(quests))]
+	var menu = tgbot.NewReplyKeyboard(
+		tgbot.NewKeyboardButtonRow(
+			tgbot.NewKeyboardButton(questObject.answer1),
+		),
+		tgbot.NewKeyboardButtonRow(
+			tgbot.NewKeyboardButton(questObject.answer2),
+		),
+		tgbot.NewKeyboardButtonRow(
+			tgbot.NewKeyboardButton(questObject.answer3),
+		),
+	)
+	msg.Text = questObject.quest
+	msg.ReplyMarkup = menu
+	_, err := bot.Send(msg)
+	checkErr(err)
+}
+
 func main() {
 	checkErr(e)
 	rand.Seed(time.Now().Unix())
-	quests := createQuest()
 
 	u := tgbot.NewUpdate(0)
 	u.Timeout = 60
@@ -69,31 +92,29 @@ func main() {
 		if update.Message.IsCommand() {
 			switch strings.ToLower(update.Message.Command()) {
 			case "start":
-				msg.Text = "Привет"
-				_, err := bot.Send(msg)
-				checkErr(err)
+				sendMess(msg, "Привет")
 			case "go":
-				questObject := quests[rand.Intn(len(quests))]
-				var menu = tgbot.NewReplyKeyboard(
-					tgbot.NewKeyboardButtonRow(
-						tgbot.NewKeyboardButton(questObject.answer1),
-					),
-					tgbot.NewKeyboardButtonRow(
-						tgbot.NewKeyboardButton(questObject.answer2),
-					),
-					tgbot.NewKeyboardButtonRow(
-						tgbot.NewKeyboardButton(questObject.answer3),
-					),
-				)
-				msg.Text = questObject.quest
-				msg.ReplyMarkup = menu
+				isGame = true
+				randQuest(msg)
+			case "stop":
+				isGame = false
+				msg.Text = "Игра была остановлена"
+				msg.ReplyMarkup = tgbot.NewRemoveKeyboard(true)
 				_, err := bot.Send(msg)
 				checkErr(err)
 			default:
-				msg.Text = "Я не знаю такую команду..."
-				_, err := bot.Send(msg)
-				checkErr(err)
+				sendMess(msg, "Я не знаю такую команду...")
 			}
+		} else if isGame {
+			if update.Message.Text == questObject.want {
+				sendMess(msg, "Верно")
+				randQuest(msg)
+			} else {
+				sendMess(msg, "Неверно")
+				randQuest(msg)
+			}
+		} else {
+			continue
 		}
 	}
 }
