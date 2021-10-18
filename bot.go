@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	tgbot "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"log"
 	"math/rand"
@@ -14,6 +15,7 @@ var bot, e = tgbot.NewBotAPI(getAPI())
 var quests = createQuest()
 var isGame = false
 var questObject questions
+var score int
 
 type questions struct {
 	quest   string
@@ -92,7 +94,7 @@ func main() {
 		if update.Message.IsCommand() {
 			switch strings.ToLower(update.Message.Command()) {
 			case "start":
-				sendMess(msg, "Привет")
+				sendMess(msg, "Привет! \nДля того чтобы начать играть, нужно прописать команду /go \nЕсли устали играть, пропиши  /stop \nУдачи!")
 			case "go":
 				isGame = true
 				randQuest(msg)
@@ -107,10 +109,14 @@ func main() {
 			}
 		} else if isGame {
 			if update.Message.Text == questObject.want {
-				sendMess(msg, "Верно")
+				score++
+				text:=fmt.Sprintf("Верно,уже ответили на %d вопрос(ов) подряд!",score)
+				sendMess(msg, text)
 				randQuest(msg)
 			} else {
-				sendMess(msg, "Неверно")
+				score=0
+				text:=fmt.Sprintf("Неверно,жалко,но счётчик округляю!")
+				sendMess(msg, text)
 				randQuest(msg)
 			}
 		} else {
